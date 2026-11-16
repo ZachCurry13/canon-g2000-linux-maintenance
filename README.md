@@ -16,6 +16,8 @@ Not affiliated with or endorsed by Canon.
 | Cleaning | Command sent through the driver, untested on hardware |
 | Print Head Alignment | Command sent through the driver, untested on hardware |
 | View Printer Status / Information | Shows CUPS queue and USB info |
+| Print test page, Cancel all jobs, Re-enable printer | Helpers for the everyday queue |
+| Setup check banner and live queue status | Warns if the printer isn't on USB or a queue is missing |
 | Everything else in the Windows tool | Greyed out: no command is known for it on Linux |
 
 The Linux driver has no `cnijfilter2` profile for the G2000 itself. This tool
@@ -27,7 +29,8 @@ only carries maintenance jobs. For normal printing keep using a regular queue
 
 - `cnijfilter2` (AUR on Arch/CachyOS)
 - Python 3 with PyQt6
-- A CUPS queue named `G2000-canon` using `canong3000.ppd`
+- A CUPS queue named `G2000-canon` using `canong3000.ppd` for maintenance
+- Your everyday queue, named `G2000-series` by default (change `NORMAL_QUEUE` in the script)
 
 ## Setup
 

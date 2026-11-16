@@ -6,18 +6,23 @@ Only the actions the Linux Canon driver (cnijfilter2) can send are enabled:
 cleaning, nozzle check and head alignment. The rest of the Windows tool's
 entries are shown greyed out because no command exists for them here.
 
-Needs: cnijfilter2, PyQt6, and the CUPS queue named below.
+Also has helpers for everyday trouble: a setup check banner, live queue
+status, a test page, cancel-all-jobs and re-enable-printer.
+
+Needs: cnijfilter2, PyQt6, and the CUPS queues named below.
 """
 import subprocess
 import sys
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (QApplication, QFrame, QGridLayout, QHBoxLayout,
                              QLabel, QMessageBox, QPlainTextEdit,
                              QPushButton, QVBoxLayout, QWidget, QDialog,
                              QStyle)
 
-QUEUE = "G2000-canon"
+QUEUE = "G2000-canon"          # Canon-driver queue, used for maintenance jobs
+NORMAL_QUEUE = "G2000-series"  # your everyday printing queue (Gutenprint)
+TEST_PAGE = "/usr/share/cups/data/testprint"
 CMD_DIR = "/usr/share/cmdtocanonij3"
 
 # (title, description, command file or None, confirmation text or None)
@@ -124,6 +129,13 @@ class Window(QWidget):
         self.setMinimumWidth(780)
         root = QVBoxLayout(self)
 
+        self.banner = QLabel()
+        self.banner.setWordWrap(True)
+        self.banner.setStyleSheet(
+            "background:#fde8e8; color:#8a1c1c; padding:8px; border-radius:4px;")
+        self.banner.hide()
+        root.addWidget(self.banner)
+
         top = QFrame()
         top.setFrameShape(QFrame.Shape.StyledPanel)
         tl = QHBoxLayout(top)
@@ -149,11 +161,86 @@ class Window(QWidget):
         bottom.addStretch()
         root.addLayout(bottom)
 
+        tools = QHBoxLayout()
+        for label, fn in (("Print test page", self.print_test_page),
+                          ("Cancel all jobs", self.cancel_jobs),
+                          ("Re-enable printer", self.reenable)):
+            b = QPushButton(label)
+            b.clicked.connect(fn)
+            tools.addWidget(b)
+        tools.addStretch()
+        root.addLayout(tools)
+
         self.status = QLabel("")
         root.addWidget(self.status)
+        self.live = QLabel("")
+        root.addWidget(self.live)
+
+        self.refresh()
+        timer = QTimer(self)
+        timer.timeout.connect(self.refresh)
+        timer.start(3000)
 
     def statusBar_text(self, t):
         self.status.setText(t)
+
+    def queue_exists(self, name):
+        return run(["lpstat", "-p", name])[0] == 0
+
+    def problems(self):
+        """List setup problems with a fix for each, or an empty list."""
+        out = []
+        if run(["sh", "-c", "lsusb | grep -qi canon"])[0] != 0:
+            out.append("The printer isn't detected on USB. Check it is "
+                       "powered on and the cable is plugged straight into "
+                       "the PC.")
+        if not self.queue_exists(QUEUE):
+            out.append(f"The maintenance queue '{QUEUE}' doesn't exist. "
+                       "See the README's Setup section to create it.")
+        if not self.queue_exists(NORMAL_QUEUE):
+            out.append(f"The everyday queue '{NORMAL_QUEUE}' doesn't exist, "
+                       "so the test page button won't work.")
+        return out
+
+    def refresh(self):
+        probs = self.problems()
+        self.banner.setText("\n".join(probs))
+        self.banner.setVisible(bool(probs))
+        parts = []
+        for q in (NORMAL_QUEUE, QUEUE):
+            if self.queue_exists(q):
+                line = run(["lpstat", "-p", q])[1].splitlines()[0]
+                parts.append(line.split(" since")[0].replace("printer ", ""))
+        self.live.setText("Status: " + "  |  ".join(parts) if parts else "")
+
+    def print_test_page(self):
+        code, out = run(["lp", "-d", NORMAL_QUEUE, TEST_PAGE])
+        self.status.setText(out if code else "Test page sent")
+
+    def cancel_jobs(self):
+        ok = QMessageBox.question(
+            self, "Cancel all jobs",
+            "Cancel every queued print job on both queues?")
+        if ok != QMessageBox.StandardButton.Yes:
+            return
+        for q in (NORMAL_QUEUE, QUEUE):
+            run(["cancel", "-a", q])
+        self.status.setText("Cancelled all jobs")
+
+    def reenable(self):
+        failed = []
+        for q in (NORMAL_QUEUE, QUEUE):
+            for cmd in ("cupsenable", "cupsaccept"):
+                code, out = run([cmd, q])
+                if code:
+                    failed.append(out)
+        if failed:
+            QMessageBox.warning(
+                self, "Re-enable printer",
+                "Some steps need administrator rights:\n" + "\n".join(failed))
+        else:
+            self.status.setText("Queues enabled and accepting jobs")
+        self.refresh()
 
     def show_status(self):
         _, out = run(["lpstat", "-l", "-p", QUEUE])
