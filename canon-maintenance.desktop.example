@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Canon Printer Maintenance
+Comment=Cleaning, nozzle check and head alignment for the Canon G2000 series
+Exec=python3 /FULL/PATH/TO/canon-maintenance.py
+Icon=printer
+Terminal=false
+Categories=Settings;HardwareSettings;
