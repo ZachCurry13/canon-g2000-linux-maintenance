@@ -69,6 +69,7 @@ class Entry(QWidget):
         self.title, self.cmdfile, self.confirm = title, cmdfile, confirm
         lay = QHBoxLayout(self)
         lay.setContentsMargins(4, 8, 4, 8)
+        self.setMinimumHeight(96)  # room for 3-line descriptions
         icon = QLabel()
         sp = getattr(QStyle.StandardPixmap, icon_name)
         icon.setPixmap(self.style().standardIcon(sp).pixmap(40, 40))

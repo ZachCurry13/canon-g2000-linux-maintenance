@@ -5,6 +5,8 @@ for the Canon PIXMA G2000 series (G2200 etc.) on Linux. Canon never shipped a
 maintenance utility for Linux, so this sends the maintenance commands from
 Canon's Linux driver (`cnijfilter2`) through CUPS.
 
+![Screenshot of the maintenance window](docs/screenshot.png)
+
 **Status: experimental.** Tested on a single G2000 over USB on CachyOS.
 Not affiliated with or endorsed by Canon.
 
